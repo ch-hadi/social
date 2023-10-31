@@ -1,30 +1,33 @@
-const express_async_handler = require("express-async-handler");
-const User = require("./../schemas/User");
-const genrateToken = require("./../utils/Token");
+const express_async_handler = require('express-async-handler');
+const User = require('./../schemas/User');
+const genrateToken = require('./../utils/Token');
 // const bcrypt = require('bcryptjs')
-const bcrypt = require("bcrypt");
+const bcrypt = require('bcrypt');
 
 const sign_up = express_async_handler(async (req, res) => {
   const full_name = req.body.full_name;
-  const username = req.body.username;
   const email = req.body.email;
   const password = req.body.password;
-  const blood_group = req.body.blood_group;
   const gender = req.body.gender;
+  const city = req.body.city;
   const tell = req.body.tell;
-  const user_location = req.body.location;
-  const city = req.body.city
-
-  if (!full_name || !email || !password || !username || !blood_group || !gender , !tell, !city) {
-    console.log("error");
-    res.send({ Error: "All fields are Required.." });
-    throw new Error("All fields are Required..");
+  if ((!full_name || !email || !password || !gender, !city)) {
+    console.log('error');
+    res
+      .status(200)
+      .send({ success: false, message: 'All fields are Required..' });
+    throw new Error('All fields are Required..');
   }
 
   const userFound = await User.findOne({ email: email });
 
   if (userFound) {
-    res.send("Error, User exist wit this email!");
+    return res
+      .status(400)
+      .send({
+        success: false,
+        message: 'User already exist witht this email!',
+      });
   }
   const securedPassword = bcrypt.hashSync(password, 10);
   // User.index({ "loc": "2dsphere" });
@@ -32,12 +35,9 @@ const sign_up = express_async_handler(async (req, res) => {
     name: full_name,
     email: email,
     password: securedPassword,
-    username: username,
-    blood_group: blood_group,
     gender: gender,
-    tell: tell,
-    city:city,
-    location:{ type: "Point", coordinates: [31.515054, 74.302857 ] },
+    tell: tell ? tell : null,
+    city: city,
   });
 
   if (user) {
@@ -45,17 +45,13 @@ const sign_up = express_async_handler(async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      username: user.username,
-      blood_group:user.blood_group,
-      gender: user.gender,
-      tell: user.tell,
-      location:user.location,
-      city:user.city,
-      token: genrateToken(user._id)
-     
+      // gender: user.gender,
+      // tell: user.tell,
+      // city: user.city,
+      token: genrateToken(user._id),
     };
 
-    res.send({ data: data });
+    return res.status(200).send({ success: true, data: data });
   }
 });
 const sign_in = express_async_handler(async (req, res) => {
@@ -65,24 +61,29 @@ const sign_in = express_async_handler(async (req, res) => {
   const password = req.body.password;
 
   if (!email || !password) {
-    res.send({ Error: "All fields are require..." });
+    return res
+      .status(400)
+      .send({ success: false, message: 'All fields are require...' });
 
-    throw new Error("All fields are require...");
+    // throw new Error('All fields are require...');
   }
 
   const user = await User.findOne({ email: email });
 
   if (user && (await bcrypt.compare(password, user.password))) {
-    res.send({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      pic: user.pic,
-      token: genrateToken(user._id),
+    res.status(200).send({
+      success: true,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        pic: user.pic,
+        token: genrateToken(user._id),
+      },
     });
   } else {
-    res.send({ Error: "User not Found.." });
-    throw new Error("User not Found..");
+    return res.status(400).send({ success: false, message: 'User not found!' });
+    // throw new Error('User not Found..');
   }
 });
 
@@ -96,8 +97,8 @@ const allUser = express_async_handler(async (req, res) => {
   //     }
   //   : {};
 
-  const users = await User.find()
-  res.send(users);
+  const users = await User.find();
+  res.status(200).send({ success: true, data: users });
 });
 
 module.exports = {
